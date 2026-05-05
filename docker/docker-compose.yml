@@ -1,0 +1,21 @@
+services:
+  piksign-detect:
+    build:
+      context: ../..
+      dockerfile: piksign_detect/docker/Dockerfile
+    image: piksign-detect:latest
+    container_name: piksign-detect
+    ports:
+      - "8000:8000"
+    environment:
+      - PIKSIGN_HOST=0.0.0.0
+      - PIKSIGN_PORT=8000
+      - PIKSIGN_CORS_ORIGINS=${PIKSIGN_CORS_ORIGINS:-*}
+      - PIKSIGN_MAX_UPLOAD_MB=${PIKSIGN_MAX_UPLOAD_MB:-20}
+    restart: unless-stopped
+    volumes:
+      - /tmp/piksign-uploads:/tmp/piksign-uploads
+      - piksign-model-weights:/app/piksign_detect/backend/assets/piksign_weights
+
+volumes:
+  piksign-model-weights:

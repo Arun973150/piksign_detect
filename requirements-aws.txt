@@ -1,0 +1,20 @@
+# Lean AWS deployment dependencies.
+# OCR/EasyOCR is intentionally omitted for small demo instances.
+
+fastapi>=0.110
+uvicorn[standard]>=0.29
+jinja2>=3.1
+python-multipart>=0.0.9
+pydantic>=2.6
+
+pillow>=10.0
+opencv-python-headless>=4.9
+numpy>=1.26
+scipy>=1.11
+pywavelets>=1.5
+scikit-learn>=1.4
+
+realitydefender>=0.2
+python-dotenv>=1.0
+requests>=2.31
+imagehash>=4.3
