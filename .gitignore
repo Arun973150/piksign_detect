@@ -1,0 +1,12 @@
+.env
+.env.*
+!.env.example
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.benchmarks/
+*.csv
+frontend/tmp/
+backend/assets/piksign_weights/
+backend/assets/bitmind_weights/
+*.pth

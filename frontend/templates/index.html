@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block title %}Upload - PikSign Detect{% endblock %}
+
+{% block content %}
+<section class="upload-card">
+    <div class="upload-head">
+        <div>
+            <span class="eyebrow">Private demo check</span>
+            <h2>Upload an image</h2>
+            <p class="muted">JPEG | PNG | WEBP | BMP | TIFF | max 15 MB | deleted after prediction.</p>
+        </div>
+        <div class="status-pill">One image at a time</div>
+    </div>
+
+    <form id="upload-form" action="/detect" method="post" enctype="multipart/form-data">
+        {% if access_token %}
+        <input type="hidden" name="access_token" value="{{ access_token }}" />
+        {% endif %}
+        <label for="file" class="dropzone" id="dropzone">
+            <input type="file" name="file" id="file" accept="image/*" required hidden />
+            <div class="dz-inner">
+                <strong>Drop image here</strong>
+                <span>or click to choose</span>
+                <span class="picked muted" id="picked"></span>
+            </div>
+        </label>
+        <button type="submit" id="submit-btn" disabled>Check image</button>
+    </form>
+
+    <div class="loading" id="loading" hidden>
+        <div class="spinner"></div>
+        <p>Running image checks. This can take about 30 seconds.</p>
+    </div>
+</section>
+
+<section class="info-card">
+    <h3>Signal stack</h3>
+    <div class="signal-grid">
+        <span>AI Check A</span>
+        <span>AI Check B</span>
+        <span>Authenticity Signal</span>
+        <span>Forensic Layer A</span>
+        <span>Forensic Layer B</span>
+        <span>File Integrity</span>
+        <span>Text Quality</span>
+        <span>Image Geometry</span>
+    </div>
+</section>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/upload.js"></script>
+{% endblock %}

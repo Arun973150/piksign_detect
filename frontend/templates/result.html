@@ -1,0 +1,149 @@
+{% extends "base.html" %}
+{% block title %}Result - {{ filename }}{% endblock %}
+
+{% set verdict_class = "verdict-" + response.verdict.lower().replace("_", "-") %}
+
+{% block content %}
+<section class="verdict-card {{ verdict_class }}">
+    <div class="verdict-main">
+        <span class="verdict-label">VERDICT</span>
+        <h2>{{ response.verdict }}</h2>
+        <div class="verdict-prob">
+            <strong>{{ "%.1f"|format(response.probability * 100) }}% confidence</strong>
+            <span class="muted">| {{ "%.1f"|format(response.elapsed_seconds) }}s</span>
+        </div>
+        <div class="confidence-meter" aria-label="Final confidence">
+            <div class="confidence-track">
+                <div class="confidence-fill" style="width: {{ (response.probability * 100)|round(1) }}%"></div>
+            </div>
+            <div class="confidence-scale">
+                <span>Real</span>
+                <span>Unsure</span>
+                <span>AI</span>
+            </div>
+        </div>
+    </div>
+    <div class="verdict-meta">
+        <p><strong>File:</strong> {{ filename }}</p>
+        {% if response.dimension %}
+        <p><strong>Dimensions:</strong> {{ response.dimension.width }} x {{ response.dimension.height }} ({{ response.dimension.aspect_string }})</p>
+        <p class="muted">{{ response.dimension.interpretation }}</p>
+        {% if response.dimension.likely_cropped %}
+        <p class="warn">Likely cropped or resized (does not match standard sizes)</p>
+        {% endif %}
+        {% endif %}
+    </div>
+</section>
+
+{% if response.image_data_url and (response.layer_a_heatmap_b64 or response.layer_b_heatmap_b64) %}
+<section class="overlay-card">
+    <div class="section-head">
+        <h3>Overlay view</h3>
+        <div class="segmented" aria-label="Heatmap overlay controls">
+            <button type="button" class="seg active" data-layer="none">Original</button>
+            {% if response.layer_a_heatmap_b64 %}
+            <button type="button" class="seg" data-layer="ela">Layer A</button>
+            {% endif %}
+            {% if response.layer_b_heatmap_b64 %}
+            <button type="button" class="seg" data-layer="noise">Layer B</button>
+            {% endif %}
+        </div>
+    </div>
+    <div class="overlay-stage" id="overlay-stage">
+        <img class="base-image" src="{{ response.image_data_url }}" alt="Uploaded image" />
+        {% if response.layer_a_heatmap_b64 %}
+        <img class="overlay-layer" data-overlay="ela" src="data:image/png;base64,{{ response.layer_a_heatmap_b64 }}" alt="Forensic layer A overlay" />
+        {% endif %}
+        {% if response.layer_b_heatmap_b64 %}
+        <img class="overlay-layer" data-overlay="noise" src="data:image/png;base64,{{ response.layer_b_heatmap_b64 }}" alt="Forensic layer B overlay" />
+        {% endif %}
+    </div>
+</section>
+{% endif %}
+
+<section class="pathways-card">
+    <h3>Check breakdown</h3>
+    <table class="pathways">
+        <thead>
+            <tr><th>Check</th><th>Score</th><th>Detail</th></tr>
+        </thead>
+        <tbody>
+        {% for p in response.pathways %}
+            <tr class="{% if not p.available %}unavailable{% endif %}">
+                <td><code>{{ p.name }}</code></td>
+                <td class="score-cell">
+                    {% if p.available %}
+                    <div class="bar"><div class="bar-fill" style="width: {{ (p.probability * 100)|round(1) }}%"></div></div>
+                    <span class="score-num">{{ "%.2f"|format(p.probability) }}</span>
+                    {% else %}
+                    <span class="muted">unavailable</span>
+                    {% endif %}
+                </td>
+                <td class="muted">{{ p.summary or "-" }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+</section>
+
+{% if response.layer_a_heatmap_b64 or response.layer_b_heatmap_b64 %}
+<section class="heatmaps-card">
+    <h3>Forensic maps</h3>
+    <p class="muted">Bright regions = potential manipulation evidence.</p>
+    <div class="heatmap-row">
+        {% if response.layer_a_heatmap_b64 %}
+        <figure>
+            <figcaption><strong>Layer A</strong> | visual consistency</figcaption>
+            <img src="data:image/png;base64,{{ response.layer_a_heatmap_b64 }}" alt="Forensic layer A map" />
+        </figure>
+        {% endif %}
+        {% if response.layer_b_heatmap_b64 %}
+        <figure>
+            <figcaption><strong>Layer B</strong> | texture consistency</figcaption>
+            <img src="data:image/png;base64,{{ response.layer_b_heatmap_b64 }}" alt="Forensic layer B map" />
+        </figure>
+        {% endif %}
+    </div>
+</section>
+{% endif %}
+
+{% if response.fusion %}
+<section class="fusion-card">
+    <h3>Score mix</h3>
+    <table class="fusion">
+        <thead><tr><th>Check</th><th>Weight</th><th>Signal</th><th>Contribution</th></tr></thead>
+        <tbody>
+        {% for name, w in (response.fusion.weights_used or {}).items() %}
+            <tr>
+                <td><code>{{ name }}</code></td>
+                <td>{{ "%.3f"|format(w) }}</td>
+                <td>{{ "%.3f"|format(response.fusion.contributions.get(name, 0) / (w if w > 0 else 1)) }}</td>
+                <td>{{ "%.3f"|format(response.fusion.contributions.get(name, 0)) }}</td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    {% if response.fusion.authenticity_bonus %}
+    <p class="muted">+ Authenticity signal bonus: {{ "%.3f"|format(response.fusion.authenticity_bonus) }}</p>
+    {% endif %}
+    {% if response.fusion.reasons %}
+    <ul class="reasons">
+        {% for r in response.fusion.reasons %}<li>{{ r }}</li>{% endfor %}
+    </ul>
+    {% endif %}
+</section>
+{% endif %}
+
+{% if response.metadata_summary %}
+<section class="meta-card">
+    <h3>File integrity notes</h3>
+    <ul>{% for s in response.metadata_summary %}<li>{{ s }}</li>{% endfor %}</ul>
+</section>
+{% endif %}
+
+<p><a href="/" class="btn">Check another image</a></p>
+{% endblock %}
+
+{% block scripts %}
+<script src="/static/js/heatmaps.js"></script>
+{% endblock %}

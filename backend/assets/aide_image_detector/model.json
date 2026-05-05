@@ -1,0 +1,18 @@
+{
+  "name": "AIDE Image Detector",
+  "repo_id": "meet4150/AIDE_image_detector",
+  "framework": "PyTorch",
+  "weights": {
+    "primary": "model.safetensors",
+    "training_snapshot": "checkpoint-19.pth"
+  },
+  "config_file": "config.json",
+  "preprocessor_file": "preprocessor_config.json",
+  "inference_file": "inference.py",
+  "labels": [
+    "real",
+    "fake"
+  ],
+  "notes": "Hybrid AIDE checkpoint exported from /home/meet/Aivsre_001/AIDE/output_multisource_run1/checkpoint-19.pth."
+}
+

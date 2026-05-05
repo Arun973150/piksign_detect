@@ -1,0 +1,24 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{% block title %}PikSign Detect{% endblock %}</title>
+    <link rel="stylesheet" href="/static/css/style.css" />
+</head>
+<body>
+    <header>
+        <div class="container">
+            <h1><a href="/">PikSign Detect</a></h1>
+            <p class="tagline">AI-image and manipulation detection</p>
+        </div>
+    </header>
+    <main class="container">{% block content %}{% endblock %}</main>
+    <footer>
+        <div class="container">
+            <small>AI Checks | Authenticity Signal | Forensic Layers | File Integrity</small>
+        </div>
+    </footer>
+    {% block scripts %}{% endblock %}
+</body>
+</html>
