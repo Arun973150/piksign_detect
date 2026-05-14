@@ -496,17 +496,18 @@ class _ModelSpec:
 
 
 _MODEL_SPECS: List[_ModelSpec] = [
-    _ModelSpec("npr", "npr.pth", "NPRDetector", "base", 0.22, "sigmoid"),
-    _ModelSpec("ucf", "bm-faces-ffhq.pth", "UCFDetector", "ucf", 0.20, "softmax_ai"),
-    _ModelSpec("bm_ucf", "bm-faces-v1.pth", "BmUCFDetector", "ucf", 0.23, "softmax_ai"),
-    _ModelSpec("spsl", "spsl_best.pth", "SPSLDetector", "spsl", 0.17, "softmax_ai"),
+    _ModelSpec("npr", "npr.pth", "NPRDetector", "base", 0.34, "sigmoid"),
+    _ModelSpec("ucf", "bm-faces-ffhq.pth", "UCFDetector", "ucf", 0.33, "softmax_ai"),
+    _ModelSpec("bm_ucf", "bm-faces-v1.pth", "BmUCFDetector", "ucf", 0.33, "softmax_ai"),
+    _ModelSpec("spsl", "spsl_best.pth", "SPSLDetector", "spsl", 0.0, "softmax_ai", enabled=False),
     _ModelSpec(
         "base_effnet",
         "base.pth",
         "BaseDetectorEffNet",
         "base",
-        0.18,
+        0.0,
         "sigmoid",
+        enabled=False,
     ),
     # The cached TALL checkpoint is a Swin/thumbnail-layout model. It is kept
     # disabled until the exact upstream TALL graph is vendored.

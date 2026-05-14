@@ -28,6 +28,9 @@ ALLOWED_EXTENSIONS = {".jpg", ".jpeg", ".png", ".webp", ".bmp", ".tiff", ".tif"}
 ACCESS_TOKEN = os.environ.get("PIKSIGN_ACCESS_TOKEN", "").strip()
 ECHO_UPLOAD = os.environ.get("PIKSIGN_ECHO_UPLOAD", "false").lower() in {"1", "true", "yes", "on"}
 DISPLAY_NAMES = {
+    "ai_check": "AI Check",
+    "bitmind_api": "BitMind API",
+    "local_ensemble": "Local Ensemble",
     "ensemble": "AI Check",
     "synthid": "Authenticity Signal",
     "ela": "Forensic Layer A",
@@ -205,7 +208,11 @@ def _to_response(report, image_data_url: Optional[str] = None) -> DetectionRespo
             details=None,
         ))
 
-    add("ensemble", report.ensemble,
+    add("ai_check", report.ai_check,
+        lambda d: _ai_check_summary(d))
+    add("bitmind_api", report.bitmind_api,
+        lambda d: _bitmind_summary(d))
+    add("local_ensemble", report.ensemble,
         lambda d: _ensemble_summary(d))
     add("synthid", report.synthid,
         lambda d: _auth_signal_summary(d))
@@ -312,6 +319,21 @@ def _ensemble_summary(d: dict) -> str:
         return f"ensemble error: {error[:80]}"
     n = len(d.get("loaded_models") or [])
     return f"{d.get('provider_status', '?')} ({d.get('probability', 0.0):.2f}) | {n} models"
+
+
+def _ai_check_summary(d: dict) -> str:
+    error = (d.get("error") or "").strip()
+    source = d.get("source", "?")
+    if error and not d.get("available"):
+        return f"AI Check unavailable: {error[:80]}"
+    return f"{d.get('provider_status', '?')} ({d.get('probability', 0.0):.2f}) | {source}"
+
+
+def _bitmind_summary(d: dict) -> str:
+    error = (d.get("error") or "").strip()
+    if error:
+        return f"API error: {error[:80]}"
+    return f"{d.get('provider_status', '?')} ({d.get('probability', 0.0):.2f}) | confidence {d.get('confidence', 0.0):.2f}"
 
 
 def _auth_signal_summary(d: dict) -> str:

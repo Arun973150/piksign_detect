@@ -12,6 +12,7 @@ from typing import Any, Dict, Optional
 
 from backend.detectors.piksign_check import PikSignCheck, PikSignCheckResult
 from backend.detectors.synthid import SynthIDDetector, SynthIDResult
+from backend.detectors.bitmind import BitMindPathway, BitMindResult
 from backend.detectors.local_ensemble import (
     LocalEnsemblePathway, LocalEnsembleResult,
 )
@@ -24,6 +25,32 @@ from backend.fusion import fuse, FusionResult
 
 
 @dataclass
+class HybridAIResult:
+    available: bool
+    status: str
+    probability: float
+    provider_status: str
+    source: str
+    weights_used: Dict[str, float] = field(default_factory=dict)
+    bitmind_probability: Optional[float] = None
+    local_probability: Optional[float] = None
+    error: Optional[str] = None
+
+    def to_dict(self) -> dict:
+        return {
+            "available": self.available,
+            "status": self.status,
+            "probability": self.probability,
+            "provider_status": self.provider_status,
+            "source": self.source,
+            "weights_used": self.weights_used,
+            "bitmind_probability": self.bitmind_probability,
+            "local_probability": self.local_probability,
+            "error": self.error,
+        }
+
+
+@dataclass
 class DetectionReport:
     image_path: str
     verdict: str
@@ -31,6 +58,8 @@ class DetectionReport:
     elapsed_seconds: float
 
     piksign_check: PikSignCheckResult
+    ai_check: Optional[Any] = None
+    bitmind_api: Optional[BitMindResult] = None
     synthid: Optional[SynthIDResult] = None
     ensemble: Optional[LocalEnsembleResult] = None
     ela: Optional[ELAResult] = None
@@ -51,6 +80,8 @@ class DetectionReport:
             "probability": self.probability,
             "elapsed_seconds": self.elapsed_seconds,
             "piksign_check": self.piksign_check.to_dict(),
+            "ai_check": _opt(self.ai_check),
+            "bitmind_api": _opt(self.bitmind_api),
             "synthid": _opt(self.synthid),
             "ensemble": _opt(self.ensemble),
             "ela": _opt(self.ela),
@@ -70,6 +101,7 @@ class PikSignDetector:
         ensemble_device: Optional[str] = None,
         ensemble_cache_dir: Optional[str] = None,
         enable_synthid: bool = True,
+        enable_bitmind_api: bool = True,
         enable_ensemble: bool = True,
         enable_ela: bool = True,
         enable_noise_residual: bool = True,
@@ -79,6 +111,7 @@ class PikSignDetector:
     ):
         self.piksign_check = PikSignCheck()
         self.synthid = SynthIDDetector(synthid_codebook_path) if enable_synthid else None
+        self.bitmind = BitMindPathway() if enable_bitmind_api else None
         self.ensemble = (
             LocalEnsemblePathway(device=ensemble_device, cache_dir=ensemble_cache_dir)
             if enable_ensemble else None
@@ -131,17 +164,19 @@ class PikSignDetector:
             )
 
         sid = self._safe(self.synthid, image_path)
+        bm = self._safe(self.bitmind, image_path)
         ens = self._safe(self.ensemble, image_path)
+        ai_check = self._hybrid_ai_check(bm, ens)
         ela = self._safe(self.ela, image_path)
         nr = self._safe(self.noise_residual, image_path)
         txt = self._safe(self.text_analysis, image_path)
 
         probs: Dict[str, Optional[float]] = {}
-        if ens and ens.available and ens.status == "success":
-            probs["ensemble"] = ens.probability
+        if ai_check and ai_check.available and ai_check.status == "success":
+            probs["ensemble"] = ai_check.probability
         strong_camera_provenance = self._strong_camera_provenance(meta)
         suppress_synthid = (
-            self._suppress_synthid_when_ai_check_low(ens)
+            self._suppress_synthid_when_ai_check_low(ai_check)
             or strong_camera_provenance
         )
         if sid and sid.available:
@@ -164,7 +199,7 @@ class PikSignDetector:
         )
 
         external = self._external_model_override(
-            ens,
+            ai_check,
             strong_camera_provenance=strong_camera_provenance,
         )
         if external:
@@ -189,7 +224,7 @@ class PikSignDetector:
             fusion_res.verdict = "AI_GENERATED"
             fusion_res.reasons.append("File integrity identifies AI-edited source")
 
-        camera_real = self._real_camera_override(meta, ens)
+        camera_real = self._real_camera_override(meta, ai_check)
         if camera_real:
             cap, note = camera_real
             if fusion_res.probability > cap:
@@ -197,7 +232,7 @@ class PikSignDetector:
             fusion_res.verdict = "REAL"
             fusion_res.reasons.append(note)
 
-        if fusion_res.verdict == "REAL" and self._classifier_uncertainty_cap(ens):
+        if fusion_res.verdict == "REAL" and self._classifier_uncertainty_cap(ai_check):
             fusion_res.verdict = "UNCERTAIN"
             fusion_res.probability = max(fusion_res.probability, 0.30)
             fusion_res.reasons.append("AI Check in uncertain range — verdict capped at UNCERTAIN")
@@ -213,6 +248,8 @@ class PikSignDetector:
             probability=fusion_res.probability,
             elapsed_seconds=time.time() - t0,
             piksign_check=ps,
+            ai_check=ai_check,
+            bitmind_api=bm,
             synthid=sid,
             ensemble=ens,
             ela=ela,
@@ -227,6 +264,68 @@ class PikSignDetector:
     def _safe(pathway, image_path: str):
         if pathway is None:
             return None
+
+    @staticmethod
+    def _hybrid_ai_check(bitmind, ensemble):
+        bm_ok = bool(bitmind and bitmind.available and bitmind.status == "success")
+        ens_ok = bool(ensemble and ensemble.available and ensemble.status == "success")
+
+        if bm_ok and float(bitmind.probability) >= 0.80:
+            return HybridAIResult(
+                available=True,
+                status="success",
+                probability=float(bitmind.probability),
+                provider_status=bitmind.provider_status,
+                source="bitmind_override",
+                weights_used={"bitmind_api": 1.0},
+                bitmind_probability=float(bitmind.probability),
+                local_probability=float(ensemble.probability) if ens_ok else None,
+            )
+
+        if bm_ok and ens_ok:
+            prob = 0.70 * float(bitmind.probability) + 0.30 * float(ensemble.probability)
+            return HybridAIResult(
+                available=True,
+                status="success",
+                probability=prob,
+                provider_status="AI" if prob >= 0.5 else "AUTHENTIC",
+                source="bitmind_local_weighted",
+                weights_used={"bitmind_api": 0.70, "local_ensemble": 0.30},
+                bitmind_probability=float(bitmind.probability),
+                local_probability=float(ensemble.probability),
+            )
+
+        if bm_ok:
+            return HybridAIResult(
+                available=True,
+                status="success",
+                probability=float(bitmind.probability),
+                provider_status=bitmind.provider_status,
+                source="bitmind_only",
+                weights_used={"bitmind_api": 1.0},
+                bitmind_probability=float(bitmind.probability),
+            )
+
+        if ens_ok:
+            return HybridAIResult(
+                available=True,
+                status="success",
+                probability=float(ensemble.probability),
+                provider_status=ensemble.provider_status,
+                source="local_only",
+                weights_used={"local_ensemble": 1.0},
+                local_probability=float(ensemble.probability),
+                error=(bitmind.error if bitmind else None),
+            )
+
+        return HybridAIResult(
+            available=False,
+            status="unavailable",
+            probability=0.0,
+            provider_status="unavailable",
+            source="none",
+            error="BitMind API and local ensemble unavailable",
+        )
         try:
             return pathway.detect(image_path)
         except Exception:
