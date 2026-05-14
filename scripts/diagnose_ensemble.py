@@ -100,6 +100,10 @@ def main() -> int:
         print(f"  [{spec.name}]  {spec.filename}")
         print("=" * 75)
 
+        if not spec.enabled:
+            print("  disabled for this BitMind source version")
+            continue
+
         wpath = _find_weight(spec.filename, cache_dir)
         if not wpath:
             print("  ! missing checkpoint")

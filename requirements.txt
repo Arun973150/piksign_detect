@@ -8,7 +8,7 @@ pydantic>=2.6
 # Image processing and forensic features
 pillow>=10.0
 opencv-python>=4.9
-numpy>=1.26
+numpy>=1.26,<2
 scipy>=1.11
 pywavelets>=1.5
 scikit-learn>=1.4
@@ -19,6 +19,8 @@ easyocr>=1.7
 # Local AI-image ensemble (replaces external classifier APIs)
 torch>=2.1
 torchvision>=0.16
+timm>=0.9
+datasets>=2.18
 
 # Config loading
 python-dotenv>=1.0

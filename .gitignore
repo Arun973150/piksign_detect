@@ -9,4 +9,5 @@ __pycache__/
 frontend/tmp/
 backend/assets/piksign_weights/
 backend/assets/bitmind_weights/
+training/checkpoints/
 *.pth
